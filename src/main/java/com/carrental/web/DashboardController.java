@@ -1,6 +1,5 @@
 package com.carrental.web;
 
-import com.carrental.web.dto.ApiErrorResponse;
 import com.carrental.web.dto.DashboardResponse;
 import com.carrental.web.dto.ReservationCommand;
 import com.carrental.web.dto.ReservationResponse;

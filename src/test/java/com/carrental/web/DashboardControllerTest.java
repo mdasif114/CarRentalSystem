@@ -7,32 +7,34 @@ import com.carrental.web.dto.DashboardResponse;
 import com.carrental.web.dto.ReservationCommand;
 import com.carrental.web.dto.ReservationResponse;
 import com.carrental.web.dto.ReservationRow;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(DashboardController.class)
-@Import(GlobalExceptionHandler.class)
 class DashboardControllerTest {
 
-    @Autowired
     private MockMvc mockMvc;
-
-    @MockBean
     private DashboardService dashboardService;
+
+    @BeforeEach
+    void setUp() {
+        dashboardService = mock(DashboardService.class);
+        mockMvc = MockMvcBuilders.standaloneSetup(new DashboardController(dashboardService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
 
     @Test
     void givenDashboardRequest_whenLoadingPage_thenReturnsView() throws Exception {

@@ -4,8 +4,8 @@ import com.carrental.model.CarType;
 import com.carrental.model.Reservation;
 import com.carrental.vehicle.Vehicle;
 
-import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -57,11 +57,9 @@ public class Inventory {
     }
 
     public long countAvailableVehicles(CarType carType, LocalDateTime referenceTime) {
-        LocalDateTime start = referenceTime.truncatedTo(ChronoUnit.MILLIS);
-        LocalDateTime end = start.plus(1, ChronoUnit.MILLIS);
         return vehiclesByType.getOrDefault(carType, Collections.emptyList())
                 .stream()
-                .filter(vehicle -> isVehicleAvailable(vehicle, start, end))
+                .filter(vehicle -> isVehicleAvailableAt(vehicle, referenceTime))
                 .count();
     }
 
@@ -121,5 +119,13 @@ public class Inventory {
             }
         }
         return true;
+    }
+
+    private boolean isVehicleAvailableAt(Vehicle vehicle, LocalDateTime referenceTime) {
+        // Reuse the overlap check with a 1-millisecond window so point-in-time
+        // availability follows the same millisecond-precision rules as bookings.
+        LocalDateTime start = referenceTime.truncatedTo(ChronoUnit.MILLIS);
+        LocalDateTime end = start.plus(1, ChronoUnit.MILLIS);
+        return isVehicleAvailable(vehicle, start, end);
     }
 }

@@ -15,7 +15,8 @@
         input, select, button { width: 100%; padding: 10px 12px; box-sizing: border-box; margin-top: 6px; border: 1px solid #d1d5db; border-radius: 8px; }
         button { background: #2563eb; color: white; font-weight: 600; cursor: pointer; border: none; margin-top: 14px; }
         button:hover { background: #1d4ed8; }
-        .message { margin-top: 12px; padding: 10px 12px; border-radius: 8px; display: none; }
+        .message { margin-top: 12px; padding: 10px 12px; border-radius: 8px; }
+        .message.hidden { display: none; }
         .message.success { background: #ecfdf5; color: #047857; display: block; }
         .message.error { background: #fef2f2; color: #b91c1c; display: block; }
         .muted { color: #6b7280; font-size: 0.95rem; }
@@ -51,7 +52,7 @@
             </div>
             <button type="submit">Reserve</button>
         </form>
-        <div id="feedback" class="message"></div>
+        <div id="feedback" class="message hidden"></div>
 
         <h2 style="margin-top: 24px;">Available cars</h2>
         <table>
@@ -95,6 +96,7 @@
 
     const defaultDate = new Date();
     defaultDate.setHours(defaultDate.getHours() + 1);
+    defaultDate.setMinutes(0);
     defaultDate.setSeconds(0);
     defaultDate.setMilliseconds(0);
     const pad = (value) => String(value).padStart(2, '0');
@@ -106,7 +108,7 @@
         clearTimeout(state.messageTimer);
         state.messageTimer = setTimeout(() => {
             feedback.textContent = '';
-            feedback.className = 'message';
+            feedback.className = 'message hidden';
         }, 4000);
     }
 
@@ -135,10 +137,11 @@
     function tickTimers() {
         document.querySelectorAll('tr[data-reservation-id]').forEach(row => {
             const remainingCell = row.querySelector('.remaining');
-            let seconds = Number(row.dataset.remainingSeconds);
-            if (Number.isNaN(seconds)) {
+            const rawSeconds = row.dataset.remainingSeconds;
+            if (!/^\d+$/.test(rawSeconds)) {
                 return;
             }
+            let seconds = parseInt(rawSeconds, 10);
             if (seconds <= 0) {
                 row.remove();
                 return;
@@ -167,7 +170,7 @@
 
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        feedback.className = 'message';
+        feedback.className = 'message hidden';
         feedback.textContent = '';
 
         const payload = {

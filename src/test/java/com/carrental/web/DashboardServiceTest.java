@@ -26,8 +26,10 @@ class DashboardServiceTest {
 
         var dashboard = service.getDashboard();
 
-        assertEquals(2, dashboard.availability().size());
+        assertEquals(3, dashboard.availability().size());
         assertEquals(0L, dashboard.availability().get(0).availableCount());
+        assertEquals(1L, dashboard.availability().get(1).availableCount());
+        assertEquals(0L, dashboard.availability().get(2).availableCount());
         assertFalse(dashboard.reservations().isEmpty());
         assertEquals("SEDAN", dashboard.reservations().get(0).carType().name());
         assertTrue(dashboard.reservations().get(0).remainingSeconds() > 0);

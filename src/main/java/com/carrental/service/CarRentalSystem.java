@@ -111,7 +111,7 @@ public class CarRentalSystem {
 
     public List<Reservation> getActiveReservations(LocalDateTime referenceTime) {
         if (referenceTime == null) {
-            return Collections.emptyList();
+            throw new InvalidReservationException("Reference time must not be null");
         }
         return inventory.getAllReservations().stream()
                 .filter(reservation -> reservation.getEndDateTime().isAfter(referenceTime))
