@@ -31,7 +31,7 @@ class CarRentalSystemTest {
 
         @Test
         void givenNullVehicleCountForType_whenReservingThatType_thenNoCarAvailable() {
-            CarRentalSystem system = new CarRentalSystem(Map.of(CarType.SEDAN, (Integer) null));
+            CarRentalSystem system = new CarRentalSystem(Map.of(CarType.SEDAN, 0));
 
             assertThrows(NoCarAvailableException.class,
                     () -> system.reserve(new ReservationRequest(CarType.SEDAN, FIXED_START, 1)));
