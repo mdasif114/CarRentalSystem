@@ -109,6 +109,26 @@ public class CarRentalSystem {
         return inventory.getReservationsForVehicle(vehicleId);
     }
 
+    public List<Reservation> getActiveReservations(LocalDateTime referenceTime) {
+        if (referenceTime == null) {
+            throw new InvalidReservationException("Reference time must not be null");
+        }
+        return inventory.getAllReservations().stream()
+                .filter(reservation -> reservation.getEndDateTime().isAfter(referenceTime))
+                .toList();
+    }
+
+    public Map<CarType, Long> getAvailableVehicleCounts(LocalDateTime referenceTime) {
+        if (referenceTime == null) {
+            throw new InvalidReservationException("Reference time must not be null");
+        }
+        Map<CarType, Long> counts = new EnumMap<>(CarType.class);
+        for (CarType carType : CarType.values()) {
+            counts.put(carType, inventory.countAvailableVehicles(carType, referenceTime));
+        }
+        return Collections.unmodifiableMap(counts);
+    }
+
     /**
      * Retrieves a vehicle instance by its identifier. This method is
      * provided primarily for testing to verify vehicle properties. It

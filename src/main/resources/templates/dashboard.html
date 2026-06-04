@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Rental Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; background: #f7f7fb; color: #1f2937; }
+        h1, h2 { margin-bottom: 12px; }
+        .grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; align-items: start; }
+        .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08); }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        th { background: #f9fafb; }
+        input, select, button { width: 100%; padding: 10px 12px; box-sizing: border-box; margin-top: 6px; border: 1px solid #d1d5db; border-radius: 8px; }
+        button { background: #2563eb; color: white; font-weight: 600; cursor: pointer; border: none; margin-top: 14px; }
+        button:hover { background: #1d4ed8; }
+        .message { margin-top: 12px; padding: 10px 12px; border-radius: 8px; }
+        .message.hidden { display: none; }
+        .message.success { background: #ecfdf5; color: #047857; display: block; }
+        .message.error { background: #fef2f2; color: #b91c1c; display: block; }
+        .muted { color: #6b7280; font-size: 0.95rem; }
+        .stack { display: grid; gap: 12px; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<h1>Car Rental Dashboard</h1>
+<p class="muted">Book a car, watch availability refresh, and track active reservations with a live countdown.</p>
+
+<div class="grid">
+    <section class="card">
+        <h2>Book a reservation</h2>
+        <form id="reservation-form">
+            <div class="stack">
+                <label>
+                    Car type
+                    <select id="carType" required>
+                        <option value="SEDAN">SEDAN</option>
+                        <option value="SUV">SUV</option>
+                        <option value="VAN">VAN</option>
+                    </select>
+                </label>
+                <label>
+                    Start date/time
+                    <input id="startDateTime" type="datetime-local" required>
+                </label>
+                <label>
+                    Number of days
+                    <input id="numberOfDays" type="number" min="1" step="1" value="1" required>
+                </label>
+            </div>
+            <button type="submit">Reserve</button>
+        </form>
+        <div id="feedback" class="message hidden"></div>
+
+        <h2 style="margin-top: 24px;">Available cars</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Car type</th>
+                <th>Available now</th>
+            </tr>
+            </thead>
+            <tbody id="availability-body"></tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Active reservations</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Reservation ID</th>
+                <th>Vehicle ID</th>
+                <th>Car type</th>
+                <th>Time left</th>
+            </tr>
+            </thead>
+            <tbody id="reservations-body"></tbody>
+        </table>
+    </section>
+</div>
+
+<script>
+    const state = {
+        dashboard: null,
+        messageTimer: null,
+    };
+
+    const feedback = document.getElementById('feedback');
+    const availabilityBody = document.getElementById('availability-body');
+    const reservationsBody = document.getElementById('reservations-body');
+    const form = document.getElementById('reservation-form');
+    const startDateTimeInput = document.getElementById('startDateTime');
+
+    const defaultDate = new Date();
+    defaultDate.setHours(defaultDate.getHours() + 1);
+    defaultDate.setMinutes(0);
+    defaultDate.setSeconds(0);
+    defaultDate.setMilliseconds(0);
+    const pad = (value) => String(value).padStart(2, '0');
+    startDateTimeInput.value = `${defaultDate.getFullYear()}-${pad(defaultDate.getMonth() + 1)}-${pad(defaultDate.getDate())}T${pad(defaultDate.getHours())}:${pad(defaultDate.getMinutes())}`;
+
+    function showMessage(text, type) {
+        feedback.textContent = text;
+        feedback.className = `message ${type}`;
+        clearTimeout(state.messageTimer);
+        state.messageTimer = setTimeout(() => {
+            feedback.textContent = '';
+            feedback.className = 'message hidden';
+        }, 4000);
+    }
+
+    function renderAvailability(rows) {
+        availabilityBody.innerHTML = rows.map(row => `
+            <tr>
+                <td>${row.carType}</td>
+                <td>${row.availableCount}</td>
+            </tr>
+        `).join('');
+    }
+
+    function renderReservations(rows) {
+        reservationsBody.innerHTML = rows.length ? rows.map(row => `
+            <tr data-reservation-id="${row.reservationId}" data-remaining-seconds="${row.remainingSeconds}">
+                <td>${row.reservationId}</td>
+                <td>${row.vehicleId}</td>
+                <td>${row.carType}</td>
+                <td class="remaining">${row.remainingLabel}</td>
+            </tr>
+        `).join('') : `
+            <tr><td colspan="4" class="muted">No active reservations</td></tr>
+        `;
+    }
+
+    function tickTimers() {
+        document.querySelectorAll('tr[data-reservation-id]').forEach(row => {
+            const remainingCell = row.querySelector('.remaining');
+            const rawSeconds = row.dataset.remainingSeconds;
+            if (!/^\d+$/.test(rawSeconds)) {
+                return;
+            }
+            let seconds = parseInt(rawSeconds, 10);
+            if (seconds <= 0) {
+                row.remove();
+                return;
+            }
+            seconds -= 1;
+            row.dataset.remainingSeconds = String(seconds);
+            const hours = String(Math.floor(seconds / 3600)).padStart(2, '0');
+            const minutes = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+            const secs = String(seconds % 60).padStart(2, '0');
+            remainingCell.textContent = `${hours}:${minutes}:${secs}`;
+        });
+        if (!reservationsBody.querySelector('tr[data-reservation-id]')) {
+            reservationsBody.innerHTML = '<tr><td colspan="4" class="muted">No active reservations</td></tr>';
+        }
+    }
+
+    async function loadDashboard() {
+        const response = await fetch('/api/dashboard');
+        if (!response.ok) {
+            throw new Error('Unable to load dashboard');
+        }
+        state.dashboard = await response.json();
+        renderAvailability(state.dashboard.availability);
+        renderReservations(state.dashboard.reservations);
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        feedback.className = 'message hidden';
+        feedback.textContent = '';
+
+        const payload = {
+            carType: document.getElementById('carType').value,
+            startDateTime: document.getElementById('startDateTime').value,
+            numberOfDays: Number(document.getElementById('numberOfDays').value)
+        };
+
+        try {
+            const response = await fetch('/api/reservations', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Reservation failed');
+            }
+            showMessage(data.message, 'success');
+            state.dashboard = data.dashboard;
+            renderAvailability(data.dashboard.availability);
+            renderReservations(data.dashboard.reservations);
+        } catch (error) {
+            showMessage(error.message, 'error');
+        }
+    });
+
+    loadDashboard().catch(error => showMessage(error.message, 'error'));
+    setInterval(tickTimers, 1000);
+    setInterval(() => loadDashboard().catch(error => showMessage(error.message, 'error')), 5000);
+</script>
+</body>
+</html>
