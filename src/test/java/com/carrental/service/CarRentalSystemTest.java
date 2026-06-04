@@ -181,5 +181,20 @@ class CarRentalSystemTest {
             assertNotNull(vehicle);
             assertEquals(CarType.SUV, vehicle.getCarType());
         }
+
+        @Test
+        void givenActiveReservations_whenQueryingSnapshot_thenReturnsImmutableViews() {
+            CarRentalSystem system = new CarRentalSystem(Map.of(CarType.SEDAN, 1, CarType.SUV, 1));
+            system.reserve(new ReservationRequest(CarType.SEDAN, FIXED_START, 1));
+            system.reserve(new ReservationRequest(CarType.SUV, FIXED_START.minusDays(2), 1));
+
+            assertEquals(0L, system.getAvailableVehicleCounts(FIXED_START).get(CarType.SEDAN));
+            assertEquals(1L, system.getAvailableVehicleCounts(FIXED_START).get(CarType.SUV));
+            assertEquals(1, system.getActiveReservations(FIXED_START).size());
+            assertThrows(UnsupportedOperationException.class,
+                    () -> system.getActiveReservations(FIXED_START).add(null));
+            assertThrows(UnsupportedOperationException.class,
+                    () -> system.getAvailableVehicleCounts(FIXED_START).put(CarType.VAN, 3L));
+        }
     }
 }

@@ -5,6 +5,7 @@ import com.carrental.model.Reservation;
 import com.carrental.vehicle.Vehicle;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 /**
@@ -29,6 +30,10 @@ public class Inventory {
         vehiclesByType.computeIfAbsent(vehicle.getCarType(), k -> new ArrayList<>()).add(vehicle);
     }
 
+    public List<Vehicle> getVehiclesByType(CarType carType) {
+        return List.copyOf(vehiclesByType.getOrDefault(carType, Collections.emptyList()));
+    }
+
     /**
      * Searches for an available vehicle of the given type that is free for
      * the provided date/time range. If no vehicle is free, {@code null}
@@ -44,20 +49,20 @@ public class Inventory {
     public Vehicle findAvailableVehicle(CarType carType, LocalDateTime start, LocalDateTime end) {
         List<Vehicle> vehicles = vehiclesByType.getOrDefault(carType, Collections.emptyList());
         for (Vehicle vehicle : vehicles) {
-            List<Reservation> reservations = reservationsByVehicle.getOrDefault(vehicle.getVehicleId(), Collections.emptyList());
-            boolean available = true;
-            for (Reservation reservation : reservations) {
-                // Overlap condition: existingStart < requestedEnd AND requestedStart < existingEnd
-                if (reservation.getStartDateTime().isBefore(end) && start.isBefore(reservation.getEndDateTime())) {
-                    available = false;
-                    break;
-                }
-            }
-            if (available) {
+            if (isVehicleAvailable(vehicle, start, end)) {
                 return vehicle;
             }
         }
         return null;
+    }
+
+    public long countAvailableVehicles(CarType carType, LocalDateTime referenceTime) {
+        LocalDateTime start = referenceTime.truncatedTo(ChronoUnit.MILLIS);
+        LocalDateTime end = start.plus(1, ChronoUnit.MILLIS);
+        return vehiclesByType.getOrDefault(carType, Collections.emptyList())
+                .stream()
+                .filter(vehicle -> isVehicleAvailable(vehicle, start, end))
+                .count();
     }
 
     /**
@@ -78,7 +83,13 @@ public class Inventory {
      * @return list of reservations for that vehicle
      */
     public List<Reservation> getReservationsForVehicle(String vehicleId) {
-        return Collections.unmodifiableList(reservationsByVehicle.getOrDefault(vehicleId, Collections.emptyList()));
+        return List.copyOf(reservationsByVehicle.getOrDefault(vehicleId, Collections.emptyList()));
+    }
+
+    public List<Reservation> getAllReservations() {
+        return reservationsByVehicle.values().stream()
+                .flatMap(List::stream)
+                .toList();
     }
 
     /**
@@ -99,5 +110,16 @@ public class Inventory {
             }
         }
         return null;
+    }
+
+    private boolean isVehicleAvailable(Vehicle vehicle, LocalDateTime start, LocalDateTime end) {
+        List<Reservation> reservations = reservationsByVehicle.getOrDefault(vehicle.getVehicleId(), Collections.emptyList());
+        for (Reservation reservation : reservations) {
+            // Overlap condition: existingStart < requestedEnd AND requestedStart < existingEnd
+            if (reservation.getStartDateTime().isBefore(end) && start.isBefore(reservation.getEndDateTime())) {
+                return false;
+            }
+        }
+        return true;
     }
 }
